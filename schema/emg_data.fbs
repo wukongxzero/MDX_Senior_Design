@@ -1,0 +1,18 @@
+namespace Robotics.Signal;
+
+// 1. Ultra-lean hardware sample tick.
+// Size: 4 bytes (status) + 32 bytes (8 channels * 4 bytes) = 36 bytes.
+struct AdsSample {
+    status_word:uint32;     // Raw 24-bit ADS1299 STATUS header from SPI
+    channels:[int32:8];     // Raw, sign-extended 24-bit ADC counts stored as 32-bit integers
+}
+
+// 2. The packet acts as a bulk window frame with unified telemetry metadata.
+table EmgPacket {
+    packet_seq:uint64;       // Drop detection / frame tracking
+    sample_rate_hz:uint16;  // Crucial for the server's DSP/filtering equations
+    t0_us:uint64;           // Microsecond timestamp of the FIRST sample in this block
+    samples:[AdsSample];    // Contiguous block of raw hardware data ticks
+}
+
+root_type EmgPacket;
