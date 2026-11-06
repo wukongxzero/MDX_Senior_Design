@@ -1,0 +1,58 @@
+namespace Robotics.Signal;
+
+// A single, fixed-size hardware sample tick.
+// Packed inline in arrays to guarantee zero heap fragmentation on the ESP32.
+struct AdsSample {
+    timestamp_ns:uint64;    // ESP32 monotonic clock uptime tracked in nanoseconds
+    status_word:uint32;     // 24-bit ADS1299 STATUS header (Lead-off status/GPIO faults)
+    
+    // 8-channel array mapping directly to the ADS1299 hardware channels.
+    // 24-bit ADC inputs converted to 32-bit floating point microvolts/volts.
+    raw_voltages:[float:8]; 
+    
+    // Placeholders for filtered values if processed downstream or on-chip.
+    filtered_envelopes:[float:8];
+    rms_features:[float:8];
+}
+
+// A bulk-transfer data packet used to batch multiple samples.
+// This significantly reduces network/serial overhead compared to single-sample packets.
+table EmgPacket {
+    packet_seq:uint64;      // Incremental frame counter to catch transmission drops
+    samples:[AdsSample];    // Contiguous vector of historical hardware ticks
+}
+
+root_type EmgPacket;
+using namespace Robotics.signal.Raw;
+
+//1. fixed size struct representing a single simualtaneous hardware sample:
+//structs which are well defined 
+struct AdsSample{
+    timestamp_ns:uint64; //linux clock is monotonic timestamps when DRDY pin fired
+    status_word: unint32; //The 24 bits ADS1299x status header (Faults|leadbits off)
+
+    //an 8 channel array matching the exact hardware geometry 
+    //24 bit ADC values are converted into a standard 32 bit floats for near real time DSP pipelines 
+    raw_voltages: [float:8]
+
+
+    //Downstream real time filtering 
+
+    filtered_envelopes:[float:8];
+    rms_features: [float:8];
+    //Downstream real time filtering features appendable side to side 
+    filtered_envelopes: [float:8];
+    rms_features: [float:8];
+
+
+    //2. The packet definition as an efficient bulk transfer buffer.
+    //instead of sending 1 sample per packet (which creates serialization overhead)
+    //accumulate packets  in your spi interrupt thread and batch them 
+    table EMGPacket{
+        packet_seq: unint64;
+        samples: [AdsSample]; //contiguous array of histrorical ticks 
+
+    }
+
+    root_type EMGPacket;
+}
